@@ -19,15 +19,28 @@ export interface ComputeStackProps extends cdk.StackProps {
   appSecrets: secretsmanager.ISecret;
 }
 
+/**
+ * ComputeStack — runs the NestJS backend on ECS Fargate behind an ALB.
+ *
+ * Request flow:
+ *   Client → ALB (public) → Fargate task (private subnet, port 3000)
+ *
+ * The deploy workflow builds a Docker image, pushes to ECR, then updates
+ * this service. The placeholder image below is replaced on first deploy.
+ *
+ * WebSocket support: Redis adapter in the app handles multi-instance fan-out,
+ * so ALB sticky sessions are not required.
+ */
 export class ComputeStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ComputeStackProps) {
     super(scope, id, props);
 
     const cluster = new ecs.Cluster(this, 'Cluster', {
       vpc: props.vpc,
-      containerInsights: true,
+      containerInsights: true, // sends CPU/memory metrics to CloudWatch
     });
 
+    // Task role — permissions the running container needs (not the deploy agent)
     const taskRole = new iam.Role(this, 'TaskRole', {
       assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
     });
@@ -40,6 +53,7 @@ export class ComputeStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
+    // Target for the GitHub Actions deploy workflow (docker push destination)
     const repository = new ecr.Repository(this, 'AppRepository', {
       repositoryName: `bloc-backend-${props.envName}`,
       removalPolicy:
@@ -49,6 +63,7 @@ export class ComputeStack extends cdk.Stack {
       emptyOnDelete: props.envName !== 'production',
     });
 
+    // Creates ALB + target group + Fargate service + task definition in one construct
     const fargateService =
       new ecsPatterns.ApplicationLoadBalancedFargateService(
         this,
@@ -60,6 +75,7 @@ export class ComputeStack extends cdk.Stack {
           desiredCount: props.envName === 'production' ? 2 : 1,
           publicLoadBalancer: true,
           taskImageOptions: {
+            // Placeholder — replaced by ECR image on first CI deploy
             image: ecs.ContainerImage.fromRegistry(
               'public.ecr.aws/docker/library/node:22-alpine',
             ),
@@ -69,6 +85,7 @@ export class ComputeStack extends cdk.Stack {
               streamPrefix: 'bloc-backend',
               logGroup,
             }),
+            // Non-sensitive config passed as plain env vars
             environment: {
               NODE_ENV: props.envName,
               PORT: '3000',
@@ -80,6 +97,7 @@ export class ComputeStack extends cdk.Stack {
               REDIS_PORT: '6379',
               POSTHOG_ENABLED: 'false',
             },
+            // Sensitive values injected from Secrets Manager at task startup
             secrets: {
               DATABASE_PASSWORD: ecs.Secret.fromSecretsManager(
                 props.databaseSecret,
@@ -99,6 +117,7 @@ export class ComputeStack extends cdk.Stack {
       healthyHttpCodes: '200',
     });
 
+    // Scale task count based on CPU — min 1, max 4 in production
     const scaling = fargateService.service.autoScaleTaskCount({
       minCapacity: 1,
       maxCapacity: props.envName === 'production' ? 4 : 2,

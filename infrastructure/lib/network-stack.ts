@@ -6,6 +6,15 @@ export interface NetworkStackProps extends cdk.StackProps {
   envName: string;
 }
 
+/**
+ * NetworkStack — VPC and security groups shared by all other stacks.
+ *
+ * Layout:
+ *   Public subnets  → ALB (created by ComputeStack)
+ *   Private subnets → ECS tasks, RDS, ElastiCache
+ *
+ * A single NAT gateway keeps staging costs low; production can add more later.
+ */
 export class NetworkStack extends cdk.Stack {
   readonly vpc: ec2.Vpc;
   readonly ecsSecurityGroup: ec2.SecurityGroup;
@@ -14,6 +23,7 @@ export class NetworkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: NetworkStackProps) {
     super(scope, id, props);
 
+    // 2 AZs for RDS/ElastiCache subnet group requirements
     this.vpc = new ec2.Vpc(this, 'Vpc', {
       maxAzs: 2,
       natGateways: 1,
@@ -27,12 +37,15 @@ export class NetworkStack extends cdk.Stack {
       ],
     });
 
+    // Reserved for custom ECS task SG rules; ALB↔ECS wiring is handled by
+    // ApplicationLoadBalancedFargateService in ComputeStack.
     this.ecsSecurityGroup = new ec2.SecurityGroup(this, 'EcsSecurityGroup', {
       vpc: this.vpc,
       description: 'ECS tasks security group',
       allowAllOutbound: true,
     });
 
+    // Shared by RDS and ElastiCache — only accepts traffic from within the VPC
     this.dataSecurityGroup = new ec2.SecurityGroup(this, 'DataSecurityGroup', {
       vpc: this.vpc,
       description: 'RDS and Redis security group',

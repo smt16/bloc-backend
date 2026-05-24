@@ -1,3 +1,6 @@
+const envOrUndefined = (value: string | undefined): string | undefined =>
+  value === '' || value === undefined ? undefined : value;
+
 export default () => ({
   app: {
     nodeEnv: process.env.NODE_ENV ?? 'development',
@@ -21,22 +24,24 @@ export default () => ({
   },
   aws: {
     region: process.env.AWS_REGION ?? 'us-east-1',
-    s3Bucket: process.env.S3_BUCKET,
-    cloudfrontDomain: process.env.CLOUDFRONT_DOMAIN,
+    s3Bucket: envOrUndefined(process.env.S3_BUCKET),
+    cloudfrontDomain: envOrUndefined(process.env.CLOUDFRONT_DOMAIN),
   },
   mux: {
-    tokenId: process.env.MUX_TOKEN_ID,
-    tokenSecret: process.env.MUX_TOKEN_SECRET,
+    tokenId: envOrUndefined(process.env.MUX_TOKEN_ID),
+    tokenSecret: envOrUndefined(process.env.MUX_TOKEN_SECRET),
   },
   posthog: {
-    apiKey: process.env.POSTHOG_API_KEY,
+    apiKey: envOrUndefined(process.env.POSTHOG_API_KEY),
     host: process.env.POSTHOG_HOST ?? 'https://us.i.posthog.com',
     enabled: process.env.POSTHOG_ENABLED === 'true',
   },
   sentry: {
-    dsn: process.env.SENTRY_DSN,
+    dsn: envOrUndefined(process.env.SENTRY_DSN),
     environment:
-      process.env.SENTRY_ENVIRONMENT ?? process.env.NODE_ENV ?? 'development',
+      envOrUndefined(process.env.SENTRY_ENVIRONMENT) ??
+      process.env.NODE_ENV ??
+      'development',
   },
 });
 

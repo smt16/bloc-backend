@@ -31,10 +31,8 @@ Health check: `GET http://localhost:3000/api/health`
 
 ## Infrastructure
 
-AWS CDK stacks live in [`infrastructure/`](infrastructure/). Synth with:
+AWS CDK stacks live in [`infrastructure/`](infrastructure/) for when you're ready to provision environments. Not wired into CI yet — synth locally with:
 
 ```bash
 cd infrastructure && npm install && npm run synth
 ```
-
-Deploy via GitHub Actions (`Deploy` workflow) or manually with AWS credentials configured.

@@ -1,5 +1,8 @@
 import * as Joi from 'joi';
 
+/** Optional integration vars — empty string in .env is treated as unset. */
+const optionalString = () => Joi.string().optional().allow('');
+
 export const envValidationSchema = Joi.object({
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test', 'staging')
@@ -20,16 +23,16 @@ export const envValidationSchema = Joi.object({
   JWT_EXPIRES_IN: Joi.string().default('7d'),
 
   AWS_REGION: Joi.string().default('us-east-1'),
-  S3_BUCKET: Joi.string().optional(),
-  CLOUDFRONT_DOMAIN: Joi.string().optional(),
+  S3_BUCKET: optionalString(),
+  CLOUDFRONT_DOMAIN: optionalString(),
 
-  MUX_TOKEN_ID: Joi.string().optional(),
-  MUX_TOKEN_SECRET: Joi.string().optional(),
+  MUX_TOKEN_ID: optionalString(),
+  MUX_TOKEN_SECRET: optionalString(),
 
-  POSTHOG_API_KEY: Joi.string().optional(),
+  POSTHOG_API_KEY: optionalString(),
   POSTHOG_HOST: Joi.string().default('https://us.i.posthog.com'),
   POSTHOG_ENABLED: Joi.string().valid('true', 'false').default('false'),
 
-  SENTRY_DSN: Joi.string().optional().allow(''),
-  SENTRY_ENVIRONMENT: Joi.string().optional(),
+  SENTRY_DSN: optionalString(),
+  SENTRY_ENVIRONMENT: optionalString(),
 });

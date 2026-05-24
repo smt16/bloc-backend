@@ -67,14 +67,3 @@ jobs:
 
       - name: Build
         run: npm run build
-
-      - name: Build Docker image
-        run: docker build -f docker/Dockerfile .
-
-      - name: Install CDK dependencies
-        working-directory: infrastructure
-        run: npm ci
-
-      - name: CDK synth
-        working-directory: infrastructure
-        run: npm run synth

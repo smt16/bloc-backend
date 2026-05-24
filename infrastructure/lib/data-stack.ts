@@ -11,6 +11,15 @@ export interface DataStackProps extends cdk.StackProps {
   dataSecurityGroup: ec2.ISecurityGroup;
 }
 
+/**
+ * DataStack — persistent stateful services for the backend.
+ *
+ *   PostgreSQL (RDS)  → primary database (TypeORM)
+ *   Redis (ElastiCache) → BullMQ job queues, pub/sub, Socket.IO adapter
+ *
+ * Both run in private subnets and are not publicly accessible.
+ * Production gets Multi-AZ RDS and deletion protection; staging does not.
+ */
 export class DataStack extends cdk.Stack {
   readonly databaseSecret: secretsmanager.ISecret;
   readonly redisEndpoint: string;
@@ -18,6 +27,7 @@ export class DataStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: DataStackProps) {
     super(scope, id, props);
 
+    // Auto-generated password stored in Secrets Manager; ECS reads it at runtime
     this.databaseSecret = new secretsmanager.Secret(this, 'DatabaseSecret', {
       secretName: `bloc/${props.envName}/database`,
       generateSecretString: {
@@ -41,7 +51,7 @@ export class DataStack extends cdk.Stack {
         ec2.InstanceSize.MICRO,
       ),
       allocatedStorage: 20,
-      maxAllocatedStorage: 100,
+      maxAllocatedStorage: 100, // autoscales storage up to 100 GB under load
       multiAz: props.envName === 'production',
       deletionProtection: props.envName === 'production',
       removalPolicy:
@@ -50,6 +60,7 @@ export class DataStack extends cdk.Stack {
           : cdk.RemovalPolicy.DESTROY,
     });
 
+    // ElastiCache requires a subnet group spanning at least 2 AZs
     const redisSubnetGroup = new elasticache.CfnSubnetGroup(
       this,
       'RedisSubnetGroup',
@@ -60,6 +71,7 @@ export class DataStack extends cdk.Stack {
       },
     );
 
+    // Single-node Redis — sufficient for Phase 1; upgrade to replication group later
     const redisCluster = new elasticache.CfnCacheCluster(this, 'Redis', {
       cacheNodeType: 'cache.t3.micro',
       engine: 'redis',
