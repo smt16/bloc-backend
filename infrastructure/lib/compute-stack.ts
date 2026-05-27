@@ -96,16 +96,23 @@ export class ComputeStack extends cdk.Stack {
               REDIS_HOST: props.redisEndpoint,
               REDIS_PORT: '6379',
               POSTHOG_ENABLED: 'false',
+              // Auth0 — set these per-env via context (`cdk deploy -c auth0Domain=...`)
+              // or override at the pipeline level. Domain + audience are public values.
+              AUTH0_DOMAIN:
+                (this.node.tryGetContext('auth0Domain') as string | undefined) ??
+                'YOUR_AUTH0_DOMAIN',
+              AUTH0_AUDIENCE:
+                (this.node.tryGetContext('auth0Audience') as string | undefined) ??
+                'https://api.bloc.app',
+              AUTH0_CUSTOM_CLAIM_NAMESPACE:
+                (this.node.tryGetContext('auth0Namespace') as string | undefined) ??
+                'https://bloc.app/',
             },
             // Sensitive values injected from Secrets Manager at task startup
             secrets: {
               DATABASE_PASSWORD: ecs.Secret.fromSecretsManager(
                 props.databaseSecret,
                 'password',
-              ),
-              JWT_SECRET: ecs.Secret.fromSecretsManager(
-                props.appSecrets,
-                'JWT_SECRET',
               ),
             },
           },

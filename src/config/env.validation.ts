@@ -19,8 +19,23 @@ export const envValidationSchema = Joi.object({
   REDIS_HOST: Joi.string().required(),
   REDIS_PORT: Joi.number().default(6379),
 
-  JWT_SECRET: Joi.string().required(),
-  JWT_EXPIRES_IN: Joi.string().default('7d'),
+  AUTH0_DOMAIN: Joi.string()
+    .hostname()
+    .required()
+    .description('Auth0 tenant domain, e.g. bloc-prod.us.auth0.com'),
+  AUTH0_AUDIENCE: Joi.string()
+    .uri()
+    .required()
+    .description(
+      'API Identifier registered in Auth0, e.g. https://api.bloc.app',
+    ),
+  AUTH0_CUSTOM_CLAIM_NAMESPACE: Joi.string()
+    .uri()
+    .default('https://bloc.app/')
+    .description(
+      'Namespace prefix for custom claims surfaced in access tokens',
+    ),
+  AUTH0_JWKS_CACHE_TTL_MS: Joi.number().integer().min(0).default(600000),
 
   AWS_REGION: Joi.string().default('us-east-1'),
   S3_BUCKET: optionalString(),

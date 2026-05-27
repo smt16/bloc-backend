@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
 import {
   ConnectedSocket,
   OnGatewayConnection,
@@ -11,6 +10,9 @@ import {
 import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
 import { Server, Socket } from 'socket.io';
+import { mapAuth0Payload } from '../../modules/auth/auth0-user.mapper';
+import { AuthenticatedUser } from '../../modules/auth/auth0.types';
+import { Auth0TokenService } from '../../modules/auth/services/auth0-token.service';
 import { InjectRedis } from '../redis/redis.decorator';
 
 @WebSocketGateway({
@@ -20,15 +22,18 @@ import { InjectRedis } from '../redis/redis.decorator';
 @Injectable()
 export class EventsGateway implements OnGatewayInit, OnGatewayConnection {
   private readonly logger = new Logger(EventsGateway.name);
+  private readonly namespace: string;
 
   @WebSocketServer()
   server!: Server;
 
   constructor(
     @InjectRedis() private readonly redisClient: Redis,
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
-  ) {}
+    private readonly auth0TokenService: Auth0TokenService,
+    configService: ConfigService,
+  ) {
+    this.namespace = configService.getOrThrow<string>('auth0.namespace');
+  }
 
   afterInit(server: Server): void {
     const pubClient = this.redisClient.duplicate();
@@ -48,18 +53,15 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection {
         return;
       }
 
-      const payload = await this.jwtService.verifyAsync<{ sub: string }>(
-        token,
-        {
-          secret: this.configService.getOrThrow<string>('jwt.secret'),
-        },
-      );
+      const payload = await this.auth0TokenService.verify(token);
+      const user = mapAuth0Payload(payload, this.namespace);
 
-      (client.data as { userId?: string }).userId = payload.sub;
+      (client.data as { user?: AuthenticatedUser }).user = user;
+      this.logger.debug(`Client connected: ${client.id} (user: ${user.sub})`);
+    } catch (error) {
       this.logger.debug(
-        `Client connected: ${client.id} (user: ${payload.sub})`,
+        `WS handshake rejected: ${error instanceof Error ? error.message : 'unknown error'}`,
       );
-    } catch {
       client.disconnect(true);
     }
   }

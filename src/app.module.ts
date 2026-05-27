@@ -5,6 +5,7 @@ import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import { AppConfigModule } from './config/config.module';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { PermissionsGuard } from './common/guards/permissions.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
@@ -74,6 +75,10 @@ import { UsersModule } from './modules/users/users.module';
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PermissionsGuard,
     },
     {
       provide: APP_INTERCEPTOR,

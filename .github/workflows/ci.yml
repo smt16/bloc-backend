@@ -45,7 +45,9 @@ jobs:
       DATABASE_PASSWORD: bloc
       REDIS_HOST: localhost
       REDIS_PORT: 6379
-      JWT_SECRET: test-secret
+      AUTH0_DOMAIN: test.auth0.com
+      AUTH0_AUDIENCE: https://api.bloc.app
+      AUTH0_CUSTOM_CLAIM_NAMESPACE: https://bloc.app/
       POSTHOG_ENABLED: false
 
     steps:

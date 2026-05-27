@@ -18,9 +18,37 @@ export default () => ({
     host: process.env.REDIS_HOST,
     port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
   },
-  jwt: {
-    secret: process.env.JWT_SECRET,
-    expiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
+  auth0: {
+    /**
+     * Auth0 tenant domain — e.g. "bloc-prod.us.auth0.com".
+     * Used to derive issuer + JWKS endpoint.
+     */
+    domain: process.env.AUTH0_DOMAIN,
+
+    /**
+     * API audience — the Identifier you set when creating the API in Auth0.
+     * Must match the `audience` requested by the mobile client.
+     */
+    audience: process.env.AUTH0_AUDIENCE,
+
+    /**
+     * Namespace for custom claims surfaced in the access token. Must be a URL
+     * not on auth0.com (Auth0 strips other namespaces). Default matches our
+     * canonical API host. Used to read e.g. `${namespace}roles`, `${namespace}email`.
+     *
+     * Wire these up via an Auth0 Post-Login / Custom Action:
+     *   api.accessToken.setCustomClaim('https://bloc.app/roles', event.authorization?.roles ?? []);
+     *   api.accessToken.setCustomClaim('https://bloc.app/email', event.user.email);
+     */
+    namespace: process.env.AUTH0_CUSTOM_CLAIM_NAMESPACE ?? 'https://bloc.app/',
+
+    /**
+     * JWKS cache TTL in ms (defaults to 10 min). Tune for slow networks.
+     */
+    jwksCacheTtlMs: parseInt(
+      process.env.AUTH0_JWKS_CACHE_TTL_MS ?? '600000',
+      10,
+    ),
   },
   aws: {
     region: process.env.AWS_REGION ?? 'us-east-1',
