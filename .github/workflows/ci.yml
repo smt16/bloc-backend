@@ -59,13 +59,13 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
       - name: Lint
-        run: npm run lint
+        run: yarn lint
 
       - name: Test
-        run: npm test -- --watchman=false
+        run: yarn test -- --watchman=false
 
       - name: Build
-        run: npm run build
+        run: yarn build
