@@ -21,6 +21,7 @@ import { StorageModule } from './infrastructure/storage/storage.module';
 import { AnalyticsEventsModule } from './modules/analytics-events/analytics-events.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ClimbingModule } from './modules/climbing/climbing.module';
+import { CrewsModule } from './modules/crews/crews.module';
 import { FeedModule } from './modules/feed/feed.module';
 import { GymsModule } from './modules/gyms/gyms.module';
 import { MediaProcessingModule } from './modules/media-processing/media-processing.module';
@@ -56,6 +57,7 @@ import { UsersModule } from './modules/users/users.module';
     MediaProcessingModule,
     NotificationsModule,
     GymsModule,
+    CrewsModule,
     AnalyticsEventsModule,
     MessagingModule,
   ],

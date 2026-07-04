@@ -14,7 +14,8 @@ export const envValidationSchema = Joi.object({
   DATABASE_PORT: Joi.number().default(5432),
   DATABASE_NAME: Joi.string().required(),
   DATABASE_USER: Joi.string().required(),
-  DATABASE_PASSWORD: Joi.string().required(),
+  // Allow an empty password for local Postgres using trust/peer auth.
+  DATABASE_PASSWORD: Joi.string().allow('').required(),
 
   REDIS_HOST: Joi.string().required(),
   REDIS_PORT: Joi.number().default(6379),

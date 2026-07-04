@@ -36,10 +36,31 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection {
   }
 
   afterInit(server: Server): void {
-    const pubClient = this.redisClient.duplicate();
-    const subClient = this.redisClient.duplicate();
-    server.adapter(createAdapter(pubClient, subClient));
-    this.logger.log('WebSocket gateway initialized with Redis adapter');
+    // For namespaced gateways the adapter must be attached to the root io
+    // server. Guard so local dev without a reachable Redis (or an
+    // incompatible server ref) degrades gracefully instead of crashing.
+    const io: Server | undefined =
+      (server as unknown as { server?: Server }).server ?? server;
+
+    if (!io || typeof io.adapter !== 'function') {
+      this.logger.warn(
+        'WebSocket gateway started without a Redis adapter (adapter unavailable)',
+      );
+      return;
+    }
+
+    try {
+      const pubClient = this.redisClient.duplicate();
+      const subClient = this.redisClient.duplicate();
+      io.adapter(createAdapter(pubClient, subClient));
+      this.logger.log('WebSocket gateway initialized with Redis adapter');
+    } catch (error) {
+      this.logger.warn(
+        `WebSocket gateway started without a Redis adapter: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
   }
 
   async handleConnection(@ConnectedSocket() client: Socket): Promise<void> {

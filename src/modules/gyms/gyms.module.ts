@@ -8,5 +8,6 @@ import { GymsService } from './gyms.service';
   imports: [TypeOrmModule.forFeature([GymEntity])],
   controllers: [GymsController],
   providers: [GymsService],
+  exports: [GymsService],
 })
 export class GymsModule {}
