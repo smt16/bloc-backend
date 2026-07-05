@@ -75,7 +75,10 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection {
       }
 
       const payload = await this.auth0TokenService.verify(token);
-      const user = mapAuth0Payload(payload, this.namespace);
+      const user = {
+        ...mapAuth0Payload(payload, this.namespace),
+        accessToken: token,
+      };
 
       (client.data as { user?: AuthenticatedUser }).user = user;
       this.logger.debug(`Client connected: ${client.id} (user: ${user.sub})`);

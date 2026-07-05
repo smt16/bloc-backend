@@ -39,6 +39,8 @@ export interface AuthenticatedUser {
   picture?: string;
   /** Auth0 application client id that minted the token (`azp` claim). */
   clientId?: string;
+  /** Verified bearer token — used internally to call /userinfo when needed. */
+  accessToken?: string;
   /** Full, verified JWT payload — escape hatch for app-specific claims. */
   raw: Auth0JwtPayload;
 }

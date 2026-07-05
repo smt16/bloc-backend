@@ -5,6 +5,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthSessionEntity } from './entities/auth-session.entity';
 import { Auth0TokenService } from './services/auth0-token.service';
+import { Auth0UserInfoService } from './services/auth0-userinfo.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
@@ -13,7 +14,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     TypeOrmModule.forFeature([AuthSessionEntity]),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, Auth0TokenService],
-  exports: [PassportModule, Auth0TokenService],
+  providers: [AuthService, JwtStrategy, Auth0TokenService, Auth0UserInfoService],
+  exports: [PassportModule, Auth0TokenService, Auth0UserInfoService],
 })
 export class AuthModule {}

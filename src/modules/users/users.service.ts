@@ -4,8 +4,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, ILike, Not, Repository } from 'typeorm';
+import { DataSource, ILike, Not, QueryFailedError, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/auth0.types';
+import { Auth0UserInfoService } from '../auth/services/auth0-userinfo.service';
 import { GymEntity } from '../gyms/entities/gym.entity';
 import { ListUsersQueryDto, UpdateMeDto } from './dto';
 import { FollowEntity } from './entities/follow.entity';
@@ -40,6 +41,7 @@ export class UsersService {
     @InjectRepository(GymEntity)
     private readonly gyms: Repository<GymEntity>,
     private readonly dataSource: DataSource,
+    private readonly auth0UserInfo: Auth0UserInfoService,
   ) {}
 
   /**
@@ -49,34 +51,80 @@ export class UsersService {
   async resolveCurrentUser(auth: AuthenticatedUser): Promise<UserEntity> {
     let user = await this.users.findOne({ where: { auth0Sub: auth.sub } });
 
+    const missingFromToken = !auth.email || !auth.name || !auth.picture;
+    const missingFromDb =
+      !user || !user.email || !user.name || !user.pictureUrl;
+
+    const profile =
+      missingFromToken && missingFromDb
+        ? await this.auth0UserInfo.resolveProfileFields(auth)
+        : {
+            email: auth.email,
+            name: auth.name,
+            picture: auth.picture,
+          };
+
     if (!user) {
       user = this.users.create({
         auth0Sub: auth.sub,
-        email: auth.email ?? null,
-        name: auth.name ?? null,
-        pictureUrl: auth.picture ?? null,
+        email: profile.email ?? null,
+        name: profile.name ?? null,
+        pictureUrl: profile.picture ?? null,
         avatarColor: colorForSeed(auth.sub),
-        initials: initialsForName(auth.name),
+        initials: initialsForName(profile.name),
         styleTags: [],
       });
-      return this.users.save(user);
+      try {
+        return await this.users.save(user);
+      } catch (err) {
+        // A concurrent request for the same principal may have inserted the
+        // row first (unique_violation on uq_users_auth0_sub). Re-read it.
+        const pgCode =
+          err instanceof QueryFailedError
+            ? ((err.driverError as { code?: string })?.code ??
+              (err as unknown as { code?: string }).code)
+            : undefined;
+        if (pgCode === '23505') {
+          const existing = await this.users.findOne({
+            where: { auth0Sub: auth.sub },
+          });
+          if (existing) return this.syncIdentityFields(existing, profile);
+        }
+        throw err;
+      }
     }
 
-    // Keep identity fields fresh from the token without clobbering user edits.
+    return this.syncIdentityFields(user, profile);
+  }
+
+  /** Keep identity fields fresh from Auth0 without clobbering user edits. */
+  private syncIdentityFields(
+    user: UserEntity,
+    profile: { email?: string; name?: string; picture?: string },
+  ): Promise<UserEntity> | UserEntity {
     let dirty = false;
-    if (auth.email && auth.email !== user.email) {
-      user.email = auth.email;
+
+    if (profile.email && profile.email !== user.email) {
+      user.email = profile.email;
       dirty = true;
     }
-    if (auth.picture && auth.picture !== user.pictureUrl) {
-      user.pictureUrl = auth.picture;
+    if (profile.picture && profile.picture !== user.pictureUrl) {
+      user.pictureUrl = profile.picture;
       dirty = true;
     }
-    if (!user.name && auth.name) {
-      user.name = auth.name;
-      user.initials = initialsForName(auth.name);
+    if (!user.name && profile.name) {
+      user.name = profile.name;
+      user.initials = initialsForName(profile.name);
+      dirty = true;
+    } else if (
+      user.initials === '?' &&
+      profile.name &&
+      initialsForName(profile.name) !== '?'
+    ) {
+      user.initials = initialsForName(profile.name);
       dirty = true;
     }
+
     return dirty ? this.users.save(user) : user;
   }
 
@@ -144,7 +192,9 @@ export class UsersService {
   async listClimbers(
     query: ListUsersQueryDto,
     viewerId: string,
-  ): Promise<(ClimberSummary & { homeGym?: string | null; isFollowing: boolean })[]> {
+  ): Promise<
+    (ClimberSummary & { homeGym?: string | null; isFollowing: boolean })[]
+  > {
     const limit = Math.min(query.limit ?? 20, 100);
     const where = query.search
       ? [
@@ -233,7 +283,9 @@ export class UsersService {
           order: { createdAt: 'ASC' },
         }),
         this.gymNameMap([user]),
-        viewerId === userId ? this.followingIds(viewerId) : Promise.resolve(new Set<string>()),
+        viewerId === userId
+          ? this.followingIds(viewerId)
+          : Promise.resolve(new Set<string>()),
       ]);
 
     return {
@@ -305,13 +357,14 @@ export class UsersService {
   private async computeGradePyramid(
     userId: string,
   ): Promise<{ grade: string; sends: number }[]> {
-    const rows: { grade: string; sends: string }[] = await this.dataSource.query(
-      `SELECT grade, COUNT(*)::int AS sends
+    const rows: { grade: string; sends: string }[] =
+      await this.dataSource.query(
+        `SELECT grade, COUNT(*)::int AS sends
        FROM climb_logs
        WHERE user_id = $1 AND outcome IN ('send','flash')
        GROUP BY grade`,
-      [userId],
-    );
+        [userId],
+      );
     return rows
       .map((r) => ({ grade: r.grade, sends: Number(r.sends) }))
       .sort((a, b) => gradeValue(b.grade) - gradeValue(a.grade))
@@ -323,9 +376,7 @@ export class UsersService {
     return new Set(rows.map((r) => r.followeeId));
   }
 
-  private async gymNameMap(
-    users: UserEntity[],
-  ): Promise<Map<string, string>> {
+  private async gymNameMap(users: UserEntity[]): Promise<Map<string, string>> {
     const ids = users
       .map((u) => u.homeGymId)
       .filter((id): id is string => Boolean(id));

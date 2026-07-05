@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
+import { Request } from 'express';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import * as jwksRsa from 'jwks-rsa';
 import { mapAuth0Payload } from '../auth0-user.mapper';
@@ -25,6 +26,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      passReqToCallback: true,
       ignoreExpiration: false,
       audience,
       issuer: `https://${domain}/`,
@@ -41,7 +43,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     this.namespace = configService.getOrThrow<string>('auth0.namespace');
   }
 
-  validate(payload: Auth0JwtPayload): AuthenticatedUser {
-    return mapAuth0Payload(payload, this.namespace);
+  validate(req: Request, payload: Auth0JwtPayload): AuthenticatedUser {
+    const accessToken = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
+    return {
+      ...mapAuth0Payload(payload, this.namespace),
+      accessToken: accessToken ?? undefined,
+    };
   }
 }
