@@ -236,8 +236,10 @@ export class UsersService {
       if (!gym) throw new NotFoundException('Home gym not found');
     }
 
+    const nextName = dto.name ?? user.name;
+
     Object.assign(user, {
-      name: dto.name ?? user.name,
+      name: nextName,
       handle: dto.handle ?? user.handle,
       bio: dto.bio ?? user.bio,
       homeGymId: dto.homeGymId ?? user.homeGymId,
@@ -245,6 +247,9 @@ export class UsersService {
       avatarColor: dto.avatarColor ?? user.avatarColor,
       styleTags: dto.styleTags ?? user.styleTags,
       privacy: dto.privacy ?? user.privacy,
+      pictureUrl:
+        dto.pictureUrl !== undefined ? dto.pictureUrl : user.pictureUrl,
+      initials: initialsForName(nextName),
     });
     return this.users.save(user);
   }

@@ -48,6 +48,11 @@ export class UpdateMeDto {
   @IsOptional()
   @IsIn(['public', 'private'])
   privacy?: 'public' | 'private';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500_000)
+  pictureUrl?: string | null;
 }
 
 export class ListUsersQueryDto {
