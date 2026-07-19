@@ -11,6 +11,7 @@ import {
   CurrentUser,
   type AuthenticatedUser,
 } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { UsersService } from '../users/users.service';
 import { CreateRouteCommentDto, CreateRouteDto, RouteQueryDto } from './dto';
 import { RoutesService } from './routes.service';
@@ -36,6 +37,8 @@ export class RoutesController {
     return this.routesService.getDetail(id, me.id);
   }
 
+  /** Requires Auth0 roles claim: admin or setter. */
+  @Roles('admin', 'setter')
   @Post()
   create(@Body() dto: CreateRouteDto) {
     return this.routesService.create(dto);

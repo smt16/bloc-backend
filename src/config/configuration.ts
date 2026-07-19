@@ -6,6 +6,23 @@ export default () => ({
     nodeEnv: process.env.NODE_ENV ?? 'development',
     port: parseInt(process.env.PORT ?? '3000', 10),
     apiPrefix: process.env.API_PREFIX ?? 'api',
+    /**
+     * Comma-separated CORS origins. Empty / unset:
+     * - development → reflect request origin (true)
+     * - production/staging → deny browser origins (empty list)
+     * Native mobile clients are unaffected by CORS.
+     */
+    corsOrigins: (() => {
+      const raw = process.env.CORS_ORIGINS?.trim();
+      if (raw) {
+        return raw
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+      const env = process.env.NODE_ENV ?? 'development';
+      return env === 'production' || env === 'staging' ? [] : true;
+    })(),
   },
   database: {
     host: process.env.DATABASE_HOST,
@@ -30,6 +47,28 @@ export default () => ({
      * Must match the `audience` requested by the mobile client.
      */
     audience: process.env.AUTH0_AUDIENCE,
+
+    /**
+     * Confidential Auth0 application (Regular Web App) used by the API to
+     * proxy email/password login via the Resource Owner Password grant.
+     * Distinct from the mobile Native app client ID.
+     */
+    clientId: envOrUndefined(process.env.AUTH0_CLIENT_ID),
+    clientSecret: envOrUndefined(process.env.AUTH0_CLIENT_SECRET),
+
+    /**
+     * Database connection name for email/password users.
+     */
+    dbConnection:
+      envOrUndefined(process.env.AUTH0_DB_CONNECTION) ??
+      'Username-Password-Authentication',
+
+    /**
+     * Scopes requested when exchanging email/password for tokens.
+     */
+    passwordGrantScope:
+      envOrUndefined(process.env.AUTH0_PASSWORD_GRANT_SCOPE) ??
+      'openid profile email offline_access',
 
     /**
      * Namespace for custom claims surfaced in the access token. Must be a URL

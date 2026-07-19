@@ -9,6 +9,9 @@ export const envValidationSchema = Joi.object({
     .default('development'),
   PORT: Joi.number().default(3000),
   API_PREFIX: Joi.string().default('api'),
+  CORS_ORIGINS: optionalString().description(
+    'Comma-separated allowed CORS origins (native apps ignore CORS)',
+  ),
 
   DATABASE_HOST: Joi.string().required(),
   DATABASE_PORT: Joi.number().default(5432),
@@ -30,6 +33,18 @@ export const envValidationSchema = Joi.object({
     .description(
       'API Identifier registered in Auth0, e.g. https://api.bloc.app',
     ),
+  AUTH0_CLIENT_ID: optionalString().description(
+    'Confidential Auth0 app client ID for email/password proxy',
+  ),
+  AUTH0_CLIENT_SECRET: optionalString().description(
+    'Confidential Auth0 app client secret for email/password proxy',
+  ),
+  AUTH0_DB_CONNECTION: optionalString().description(
+    'Auth0 Database connection name (default Username-Password-Authentication)',
+  ),
+  AUTH0_PASSWORD_GRANT_SCOPE: optionalString().description(
+    'Scopes for password-realm token exchange',
+  ),
   AUTH0_CUSTOM_CLAIM_NAMESPACE: Joi.string()
     .uri()
     .default('https://bloc.app/')

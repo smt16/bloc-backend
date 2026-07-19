@@ -1,6 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { initSentry } from './infrastructure/monitoring/monitoring.module';
@@ -12,6 +13,14 @@ async function bootstrap() {
   initSentry(configService);
 
   app.useLogger(app.get(Logger));
+  app.use(helmet());
+
+  const corsOrigins = configService.get<string[] | true>('app.corsOrigins');
+  app.enableCors({
+    origin: corsOrigins === undefined || corsOrigins === true ? true : corsOrigins,
+    credentials: true,
+  });
+
   app.setGlobalPrefix(configService.get<string>('app.apiPrefix') ?? 'api');
   app.useGlobalPipes(
     new ValidationPipe({

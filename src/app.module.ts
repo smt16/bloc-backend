@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import { AppConfigModule } from './config/config.module';
@@ -32,12 +33,32 @@ import { UsersModule } from './modules/users/users.module';
 @Module({
   imports: [
     AppConfigModule,
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: seconds(60),
+        limit: 120,
+      },
+    ]),
     LoggerModule.forRoot({
       pinoHttp: {
         transport:
           process.env.NODE_ENV !== 'production'
             ? { target: 'pino-pretty', options: { singleLine: true } }
             : undefined,
+        redact: {
+          paths: [
+            'req.headers.authorization',
+            'req.headers.cookie',
+            'req.body.password',
+            'req.body.refreshToken',
+            'req.body.accessToken',
+            'req.body.idToken',
+            'req.body.client_secret',
+            'req.body.clientSecret',
+          ],
+          remove: true,
+        },
       },
     }),
     SentryModule.forRoot(),
@@ -69,6 +90,10 @@ import { UsersModule } from './modules/users/users.module';
     {
       provide: APP_FILTER,
       useClass: GlobalExceptionFilter,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
     },
     {
       provide: APP_GUARD,

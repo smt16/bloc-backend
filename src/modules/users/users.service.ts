@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -213,11 +214,14 @@ export class UsersService {
     const following = await this.followingIds(viewerId);
     const gymNames = await this.gymNameMap(users);
 
-    return users.map((u) => ({
-      ...toClimberSummary(u),
-      homeGym: u.homeGymId ? (gymNames.get(u.homeGymId) ?? null) : null,
-      isFollowing: following.has(u.id),
-    }));
+    // Private climbers are discoverable only to people who already follow them.
+    return users
+      .filter((u) => u.privacy !== 'private' || following.has(u.id))
+      .map((u) => ({
+        ...toClimberSummary(u),
+        homeGym: u.homeGymId ? (gymNames.get(u.homeGymId) ?? null) : null,
+        isFollowing: following.has(u.id),
+      }));
   }
 
   async updateMe(userId: string, dto: UpdateMeDto): Promise<UserEntity> {
@@ -274,8 +278,21 @@ export class UsersService {
   /** Full profile payload for the profile screen. */
   async getProfile(userId: string, viewerId: string) {
     const user = await this.findByIdOrThrow(userId);
+    const isMe = viewerId === userId;
 
-    const [stats, pyramid, timeline, achievements, gymNames, following] =
+    const isFollower = isMe
+      ? false
+      : Boolean(
+          await this.follows.findOne({
+            where: { followerId: viewerId, followeeId: userId },
+          }),
+        );
+
+    if (user.privacy === 'private' && !isMe && !isFollower) {
+      throw new ForbiddenException('This profile is private');
+    }
+
+    const [stats, pyramid, timeline, achievements, gymNames] =
       await Promise.all([
         this.computeStats(userId),
         this.computeGradePyramid(userId),
@@ -288,14 +305,11 @@ export class UsersService {
           order: { createdAt: 'ASC' },
         }),
         this.gymNameMap([user]),
-        viewerId === userId
-          ? this.followingIds(viewerId)
-          : Promise.resolve(new Set<string>()),
       ]);
 
     return {
       ...toClimberSummary(user),
-      email: user.email ?? null,
+      ...(isMe ? { email: user.email ?? null } : {}),
       bio: user.bio ?? null,
       styleTags: user.styleTags,
       privacy: user.privacy,
@@ -319,8 +333,8 @@ export class UsersService {
         tone: a.tone,
         earned: a.earned,
       })),
-      isFollowing: viewerId !== userId ? following.has(userId) : undefined,
-      isMe: viewerId === userId,
+      isFollowing: isMe ? undefined : isFollower,
+      isMe,
     };
   }
 

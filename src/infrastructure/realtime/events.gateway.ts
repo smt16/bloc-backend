@@ -15,9 +15,22 @@ import { AuthenticatedUser } from '../../modules/auth/auth0.types';
 import { Auth0TokenService } from '../../modules/auth/services/auth0-token.service';
 import { InjectRedis } from '../redis/redis.decorator';
 
+const websocketCorsOrigin = (): boolean | string[] => {
+  const raw = process.env.CORS_ORIGINS?.trim();
+  if (raw) {
+    return raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  const env = process.env.NODE_ENV ?? 'development';
+  // Reflect request origin in local/dev; deny browser WS CORS in prod/staging.
+  return env === 'production' || env === 'staging' ? [] : true;
+};
+
 @WebSocketGateway({
   namespace: '/ws',
-  cors: { origin: '*' },
+  cors: { origin: websocketCorsOrigin() },
 })
 @Injectable()
 export class EventsGateway implements OnGatewayInit, OnGatewayConnection {

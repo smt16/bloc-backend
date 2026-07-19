@@ -6,6 +6,7 @@ import {
   ParseUUIDPipe,
   Post,
 } from '@nestjs/common';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CreateGymDto } from './dto';
 import { GymsService } from './gyms.service';
 
@@ -23,6 +24,8 @@ export class GymsController {
     return this.gymsService.findOne(id);
   }
 
+  /** Requires Auth0 roles claim: admin or setter. */
+  @Roles('admin', 'setter')
   @Post()
   create(@Body() dto: CreateGymDto) {
     return this.gymsService.create(dto);
