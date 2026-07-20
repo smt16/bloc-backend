@@ -36,7 +36,11 @@ export class StorageStack extends cdk.Stack {
       // CORS allows the mobile app to upload directly via presigned URLs
       cors: [
         {
-          allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.PUT, s3.HttpMethods.HEAD],
+          allowedMethods: [
+            s3.HttpMethods.GET,
+            s3.HttpMethods.PUT,
+            s3.HttpMethods.HEAD,
+          ],
           allowedOrigins: ['*'],
           allowedHeaders: ['*'],
         },
@@ -46,7 +50,9 @@ export class StorageStack extends cdk.Stack {
     const distribution = new cloudfront.Distribution(this, 'MediaCdn', {
       defaultBehavior: {
         // OAC replaces the older OAI pattern — S3 only trusts this distribution
-        origin: origins.S3BucketOrigin.withOriginAccessControl(this.mediaBucket),
+        origin: origins.S3BucketOrigin.withOriginAccessControl(
+          this.mediaBucket,
+        ),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       },
     });
